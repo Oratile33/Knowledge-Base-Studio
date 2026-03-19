@@ -777,6 +777,89 @@
     @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
     @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-5px); } }
 
+    /* ===== Font Upload Styles ===== */
+    .font-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .font-select-wrapper { position: relative; flex-shrink: 0; }
+    #fontFamilySelect {
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+      min-width: 130px;
+      max-width: 160px;
+    }
+    #fontFamilySelect:focus { border-color: var(--accent); }
+    #fontFamilySelect optgroup { font-style: normal; font-weight: 600; font-size: 11px; color: var(--text-secondary); }
+    #fontFamilySelect option { font-weight: 400; color: var(--text-primary); padding: 2px 4px; }
+    .font-upload-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.12s;
+      flex-shrink: 0;
+    }
+    .font-upload-label:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .font-upload-label input[type="file"] { display: none; }
+    .custom-font-tag {
+      display: inline-block;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 4px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .font-info-bar {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--accent-soft);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+    .font-info-bar.visible { display: flex; }
+    .font-info-bar .font-name { font-weight: 600; }
+    .font-info-bar .font-remove {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font-ui);
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      transition: background 0.12s;
+    }
+    .font-info-bar .font-remove:hover { background: var(--red-soft); }
+
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
       .sidebar { position: absolute; right: 0; top: 0; bottom: 0; z-index: 150; box-shadow: var(--shadow-lg); }
@@ -821,6 +904,36 @@
           <option value="blockquote">Blockquote</option>
           <option value="pre">Code Block</option>
         </select>
+      </div>
+      <div class="toolbar-divider"></div>
+      <!-- Font Family -->
+      <div class="toolbar-group font-controls">
+        <select id="fontFamilySelect" title="Font Family">
+          <optgroup label="Sans-Serif">
+            <option value="">Default</option>
+            <option value="DM Sans" style="font-family:'DM Sans',sans-serif">DM Sans</option>
+            <option value="Arial" style="font-family:Arial,sans-serif">Arial</option>
+            <option value="Verdana" style="font-family:Verdana,sans-serif">Verdana</option>
+            <option value="Trebuchet MS" style="font-family:'Trebuchet MS',sans-serif">Trebuchet MS</option>
+            <option value="Calibri" style="font-family:Calibri,sans-serif">Calibri</option>
+          </optgroup>
+          <optgroup label="Serif">
+            <option value="Source Serif 4" style="font-family:'Source Serif 4',serif">Source Serif 4</option>
+            <option value="Georgia" style="font-family:Georgia,serif">Georgia</option>
+            <option value="Times New Roman" style="font-family:'Times New Roman',serif">Times New Roman</option>
+            <option value="Cambria" style="font-family:Cambria,serif">Cambria</option>
+          </optgroup>
+          <optgroup label="Monospace">
+            <option value="JetBrains Mono" style="font-family:'JetBrains Mono',monospace">JetBrains Mono</option>
+            <option value="Courier New" style="font-family:'Courier New',monospace">Courier New</option>
+          </optgroup>
+          <optgroup label="Custom Fonts" id="customFontGroup" style="display:none">
+          </optgroup>
+        </select>
+        <label class="font-upload-label" title="Upload Custom Font (.woff, .woff2, .ttf, .otf)">
+          <i class="fas fa-upload"></i>
+          <input type="file" id="fontUploadInput" accept=".woff,.woff2,.ttf,.otf,.WOFF,.WOFF2,.TTF,.OTF">
+        </label>
       </div>
       <div class="toolbar-divider"></div>
       <!-- Inline Format -->
@@ -896,6 +1009,13 @@
     <!-- Workspace -->
     <div class="workspace">
       <div class="editor-pane">
+        <!-- Font Info Bar -->
+        <div class="font-info-bar" id="fontInfoBar">
+          <i class="fas fa-font"></i>
+          <span>Custom font loaded: <span class="font-name" id="fontInfoName"></span></span>
+          <span style="color:var(--text-secondary)">(will be embedded in export)</span>
+          <button class="font-remove" id="fontRemoveBtn"><i class="fas fa-xmark"></i> Remove</button>
+        </div>
         <!-- Find Bar -->
         <div class="find-bar" id="findBar">
           <input type="text" id="findInput" placeholder="Find...">
@@ -1169,6 +1289,157 @@
     const formatSelect = $('#formatSelect');
     let isSourceMode = false;
     let currentTableEl = null;
+    const fontFamilySelect = $('#fontFamilySelect');
+    const customFontGroup = $('#customFontGroup');
+
+    /* ===== Custom Font Management ===== */
+    const customFonts = []; /* { name, blobUrl, base64DataUri, format } */
+
+    function getFontFormat(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      const formats = { woff2: 'woff2', woff: 'woff', ttf: 'truetype', otf: 'opentype' };
+      return formats[ext] || 'truetype';
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function readFileAsArrayBuffer(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function registerCustomFont(name, base64DataUri, format) {
+      /* Create a @font-face style element */
+      const styleEl = document.createElement('style');
+      styleEl.id = 'custom-font-' + name.replace(/\s+/g, '-');
+      styleEl.textContent = `@font-face { font-family: '${name}'; src: url('${base64DataUri}') format('${format}'); font-weight: normal; font-style: normal; font-display: swap; }`;
+      document.head.appendChild(styleEl);
+    }
+
+    function addCustomFontOption(name) {
+      customFontGroup.style.display = '';
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      opt.dataset.custom = 'true';
+      customFontGroup.appendChild(opt);
+      fontFamilySelect.value = name;
+      fontFamilySelect.dispatchEvent(new Event('change'));
+    }
+
+    function removeCustomFont(name) {
+      const idx = customFonts.findIndex(f => f.name === name);
+      if (idx === -1) return;
+      const font = customFonts[idx];
+      /* Revoke blob URL */
+      if (font.blobUrl) URL.revokeObjectURL(font.blobUrl);
+      /* Remove style element */
+      const styleEl = document.getElementById('custom-font-' + name.replace(/\s+/g, '-'));
+      if (styleEl) styleEl.remove();
+      /* Remove option from dropdown */
+      const opt = customFontGroup.querySelector(`option[value="${name}"]`);
+      if (opt) opt.remove();
+      /* Hide group if empty */
+      if (customFontGroup.children.length === 0) customFontGroup.style.display = 'none';
+      customFonts.splice(idx, 1);
+      /* Reset font selection */
+      fontFamilySelect.value = '';
+      fontFamilySelect.dispatchEvent(new Event('change'));
+      /* Hide info bar */
+      $('#fontInfoBar').classList.remove('visible');
+      showToast(`Font "${name}" removed`);
+    }
+
+    /* Font upload handler */
+    $('#fontUploadInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      e.target.value = '';
+
+      const validExts = ['woff', 'woff2', 'ttf', 'otf'];
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (!validExts.includes(ext)) {
+        showToast('Unsupported format. Use .woff, .woff2, .ttf, or .otf');
+        return;
+      }
+
+      /* Derive font name from filename */
+      let fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+      /* Check for duplicate */
+      if (customFonts.some(f => f.name === fontName)) {
+        showToast(`Font "${fontName}" is already loaded`);
+        fontFamilySelect.value = fontName;
+        fontFamilySelect.dispatchEvent(new Event('change'));
+        return;
+      }
+
+      try {
+        const format = getFontFormat(file.name);
+        const base64DataUri = await readFileAsBase64(file);
+        const blobUrl = URL.createObjectURL(file);
+
+        /* Register @font-face */
+        registerCustomFont(fontName, base64DataUri, format);
+
+        /* Store font data */
+        customFonts.push({ name: fontName, blobUrl, base64DataUri, format });
+
+        /* Add to dropdown and select it */
+        addCustomFontOption(fontName);
+
+        /* Show info bar */
+        $('#fontInfoName').textContent = fontName;
+        $('#fontInfoBar').classList.add('visible');
+
+        showToast(`Font "${fontName}" loaded successfully`);
+      } catch (err) {
+        showToast('Failed to load font file');
+      }
+    });
+
+    /* Font family select change handler */
+    fontFamilySelect.addEventListener('change', () => {
+      const val = fontFamilySelect.value;
+      editor.focus();
+      if (val) {
+        document.execCommand('fontName', false, val);
+      } else {
+        /* Reset to default editor font */
+        document.execCommand('fontName', false, 'Source Serif 4');
+      }
+
+      /* Show/hide font info bar for custom fonts */
+      const isCustom = customFonts.some(f => f.name === val);
+      if (isCustom) {
+        $('#fontInfoName').textContent = val;
+        $('#fontInfoBar').classList.add('visible');
+      } else {
+        $('#fontInfoBar').classList.remove('visible');
+      }
+    });
+
+    /* Font remove button */
+    $('#fontRemoveBtn').addEventListener('click', () => {
+      const currentFont = fontFamilySelect.value;
+      const isCustom = customFonts.some(f => f.name === currentFont);
+      if (isCustom) {
+        showConfirmDialog('Remove Font', `Remove "${currentFont}" from the editor? Text using this font will fall back to the default.`, () => {
+          removeCustomFont(currentFont);
+        });
+      }
+    });
 
     /* Set default paragraph separator */
     document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -1273,6 +1544,18 @@
           formatSelect.value = normalized;
         }
       } catch (_e) { /* ignore */ }
+
+      /* Update font family select */
+      try {
+        const currentFont = document.queryCommandValue('fontName');
+        if (currentFont) {
+          const cleanFont = currentFont.replace(/['"]/g, '');
+          const matchOpt = fontFamilySelect.querySelector(`option[value="${cleanFont}"]`);
+          if (matchOpt) {
+            fontFamilySelect.value = cleanFont;
+          }
+        }
+      } catch (_e2) { /* ignore */ }
 
       /* Table context */
       checkTableContext();
@@ -1967,6 +2250,11 @@
         notes ? `Notes: ${notes}` : ''
       ].filter(Boolean).join('\n  ');
 
+      /* Build custom font @font-face rules for export */
+      const customFontFaces = customFonts.map(f =>
+        `@font-face { font-family: '${f.name}'; src: url('${f.base64DataUri}') format('${f.format}'); font-weight: normal; font-style: normal; font-display: swap; }`
+      ).join('\n    ');
+
       const htmlDoc = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1979,6 +2267,7 @@
   ${metaComments}
   -->
   <style>
+    ${customFontFaces}
     body {
       font-family: 'Source Serif 4', Georgia, serif;
       line-height: 1.8;
