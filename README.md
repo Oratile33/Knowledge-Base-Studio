@@ -32,6 +32,24 @@ A fully-featured WYSIWYG HTML editor built specifically for authoring knowledge 
 - **Text color** and **highlight color** pickers
 - **Clear Formatting** button (eraser icon) to reset selected text
 
+### Font Family
+- **Built-in font dropdown** in the toolbar with sans-serif, serif, and monospace options
+- Select text and choose a font to apply it, or pick a font before typing
+- Available families include DM Sans, Arial, Verdana, Calibri, Source Serif 4, Georgia, Times New Roman, Cambria, JetBrains Mono, Courier New, and more
+
+### Custom Font Upload
+Upload your organisation's proprietary fonts directly into the editor:
+
+1. Click the **⬆ upload** icon next to the font dropdown in the toolbar
+2. Select a font file — supported formats: `.woff`, `.woff2`, `.ttf`, `.otf`
+3. The font is loaded instantly via `@font-face` and appears in the **Custom Fonts** section of the dropdown
+4. Select text and choose your custom font, or start typing with it selected
+5. A **font info bar** appears below the toolbar confirming the loaded font, with a **Remove** button to unregister it
+
+**Export with embedded fonts:** When you export to HTML, any uploaded custom fonts are automatically embedded as base64 `@font-face` rules. The exported file is completely self-contained — recipients see the correct font without needing the font file installed.
+
+> **Tip:** `.woff2` files are recommended for the smallest export size.
+
 ### Block Formats
 - Paragraph, Heading 1–4, Blockquote, Code Block — selectable from the dropdown
 - **Code blocks** support `Tab` for indentation and `Shift+Enter` to exit the block
@@ -87,10 +105,41 @@ Fill in optional metadata that gets embedded in the exported HTML as comments:
 - **Status** — Draft, In Review, or Published (also shown in the status bar)
 - **Notes** — Internal notes (not visible in the published article body)
 
+---
+
+## Import
+
+Click **Import** in the top bar to open the Import Document dialog. Two file types are supported:
+
+### Import DOCX (Word Documents)
+Convert Microsoft Word `.docx` files to HTML directly in the browser using [mammoth.js](https://github.com/mwilliamson/mammoth.js):
+
+1. Click the **`.docx file`** button and select your Word document
+2. The file is converted entirely client-side — nothing leaves your machine
+3. Converted HTML appears in the preview textarea for review and optional editing
+4. Click **Import** to load the result into the editor
+
+**What's preserved from DOCX:**
+- Headings (H1–H4) and paragraphs
+- Bold, italic, underline, strikethrough
+- Ordered and unordered lists (including nested)
+- Tables
+- Links and images (embedded images are converted to base64)
+- Blockquotes
+- Custom Word styles are mapped to semantic HTML (Title → H1, Heading 1–4, Quote → blockquote, etc.)
+
+**Conversion feedback:**
+- A loading spinner is shown during conversion
+- Success message with the filename when complete
+- If there are minor conversion warnings (e.g., unsupported Word features), they are displayed in a collapsible panel
+- Clear error messages for unsupported formats
+
+> **Note:** The legacy `.doc` format (pre-2007 binary format) is **not supported**. If you have a `.doc` file, open it in Word and save it as `.docx` (File → Save As → .docx) before importing.
+
 ### Import HTML
-- Click **Import** in the top bar
-- Paste raw HTML into the text area, **or** click "Load .html file" to open an existing file
-- Click **Import** to load it into the editor
+- Click the **`.html file`** button and select an HTML file, **or** paste raw HTML directly into the textarea
+- If the file is a full HTML document, the body content is extracted automatically
+- Review and edit the HTML in the preview textarea before importing
 
 ---
 
@@ -102,6 +151,7 @@ The exported file includes:
 - Full `<!DOCTYPE html>` document structure
 - Embedded CSS with professional documentation styling
 - Google Fonts (Source Serif 4, DM Sans, JetBrains Mono)
+- Any custom uploaded fonts embedded as base64 `@font-face` rules
 - Responsive layout (mobile-friendly)
 - Print-friendly styles
 - Article metadata in an HTML comment block at the top of `<head>`
@@ -149,8 +199,21 @@ Tested on modern versions of:
 
 ---
 
+## Dependencies
+
+KBA Studio loads the following external libraries from CDN:
+- [Google Fonts](https://fonts.googleapis.com) — Bricolage Grotesque, DM Sans, Source Serif 4, JetBrains Mono
+- [Font Awesome 6.5](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css) — Toolbar and UI icons
+- [mammoth.js 1.8](https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js) — Client-side DOCX to HTML conversion
+
+All processing happens in the browser. No data is sent to any server.
+
+---
+
 ## Notes
 
 - All work is **in-memory only**. There is no auto-save to disk. Export your article regularly.
 - The editor uses `contentEditable` and `document.execCommand` for formatting, which is widely supported in current browsers.
 - Exported HTML files are completely self-contained and do not depend on any external JavaScript.
+- Custom font files are held in memory only for the current session. Re-upload them if you refresh the page.
+- DOCX conversion quality depends on the complexity of the original document. Heavily styled or layout-heavy Word files may lose some visual formatting — review the converted HTML before importing.
