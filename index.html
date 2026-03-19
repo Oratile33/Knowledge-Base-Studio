@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <style>
     /* ===== CSS Custom Properties ===== */
     :root {
@@ -878,7 +879,7 @@
       <div class="brand">KBA<span class="brand-dot">.</span>Studio</div>
       <input type="text" class="top-bar-title" id="docTitle" placeholder="Untitled Article" spellcheck="false">
       <div class="top-bar-actions">
-        <button class="top-btn top-btn-ghost" id="btnImport" title="Import HTML"><i class="fas fa-file-import"></i> <span class="btn-label">Import</span></button>
+        <button class="top-btn top-btn-ghost" id="btnImport" title="Import HTML or DOCX"><i class="fas fa-file-import"></i> <span class="btn-label">Import</span></button>
         <button class="top-btn top-btn-ghost" id="btnTemplates" title="Templates"><i class="fas fa-layer-group"></i> <span class="btn-label">Templates</span></button>
         <button class="top-btn top-btn-ghost" id="btnShortcuts" title="Keyboard Shortcuts"><i class="fas fa-keyboard"></i></button>
         <button class="top-btn top-btn-accent" id="btnExport" title="Export as HTML"><i class="fas fa-download"></i> <span class="btn-label">Export</span></button>
@@ -1199,19 +1200,29 @@
   <div class="modal-overlay" id="modalImport">
     <div class="modal" style="max-width:600px;">
       <div class="modal-header">
-        <span class="modal-title">Import HTML</span>
+        <span class="modal-title">Import Document</span>
         <button class="modal-close" onclick="hideModal('modalImport')"><i class="fas fa-xmark"></i></button>
       </div>
       <div class="modal-body">
         <div class="modal-field">
-          <label>Paste HTML content below or load a file:</label>
-          <textarea id="importHtml" placeholder="<h1>My Article</h1><p>Content here...</p>" style="min-height:160px;font-family:var(--font-mono);font-size:13px;"></textarea>
+          <label>Upload a file to convert, or paste HTML directly:</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;margin-bottom:14px;">
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:140px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+              <i class="fas fa-file-word"></i> <span>.docx file</span>
+              <input type="file" id="importDocx" accept=".docx,.DOCX" style="display:none;">
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:140px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+              <i class="fas fa-file-code"></i> <span>.html file</span>
+              <input type="file" id="importFile" accept=".html,.htm" style="display:none;">
+            </label>
+          </div>
         </div>
-        <div class="modal-field" style="margin-bottom:0;">
-          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;">
-            <i class="fas fa-file-code"></i> Load .html file
-            <input type="file" id="importFile" accept=".html,.htm" style="display:none;">
-          </label>
+        <div id="importDocxStatus" style="display:none;padding:12px 16px;border-radius:var(--radius);margin-bottom:14px;font-size:13px;">
+          <span id="importDocxMsg"></span>
+        </div>
+        <div class="modal-field">
+          <label>HTML preview <span style="font-weight:400;color:var(--text-secondary)">— edit before importing if needed</span></label>
+          <textarea id="importHtml" placeholder="<h1>My Article</h1><p>Content here...</p>" style="min-height:160px;font-family:var(--font-mono);font-size:13px;"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -2185,14 +2196,39 @@
     $('#btnTemplates').addEventListener('click', () => showModal('modalTemplates'));
 
     /* ===== Import ===== */
+    const importStatusEl = $('#importDocxStatus');
+    const importStatusMsg = $('#importDocxMsg');
+
+    function showImportStatus(msg, type) {
+      importStatusEl.style.display = 'block';
+      importStatusMsg.innerHTML = msg;
+      if (type === 'loading') {
+        importStatusEl.style.background = 'var(--teal-soft)';
+        importStatusEl.style.color = 'var(--teal)';
+      } else if (type === 'success') {
+        importStatusEl.style.background = 'var(--green-soft)';
+        importStatusEl.style.color = 'var(--green)';
+      } else if (type === 'error') {
+        importStatusEl.style.background = 'var(--red-soft)';
+        importStatusEl.style.color = 'var(--accent)';
+      } else {
+        importStatusEl.style.background = 'var(--amber-soft)';
+        importStatusEl.style.color = 'var(--amber)';
+      }
+    }
+    function hideImportStatus() { importStatusEl.style.display = 'none'; }
+
     $('#btnImport').addEventListener('click', () => {
       $('#importHtml').value = '';
+      hideImportStatus();
       showModal('modalImport');
     });
 
+    /* HTML file import */
     $('#importFile').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
+      hideImportStatus();
       const reader = new FileReader();
       reader.onload = (ev) => {
         let content = ev.target.result;
@@ -2200,28 +2236,108 @@
         const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         if (bodyMatch) content = bodyMatch[1];
         $('#importHtml').value = content;
+        showImportStatus('<i class="fas fa-circle-check"></i> HTML file loaded — review and click Import', 'success');
       };
       reader.readAsText(file);
       e.target.value = '';
     });
 
+    /* DOCX file import */
+    $('#importDocx').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      e.target.value = '';
+
+      const ext = file.name.split('.').pop().toLowerCase();
+
+      /* Check for old .doc format */
+      if (ext === 'doc') {
+        showImportStatus(
+          '<i class="fas fa-triangle-exclamation"></i> <strong>.doc format is not supported.</strong> ' +
+          'Please save your document as <strong>.docx</strong> in Word (File → Save As → .docx) and try again.',
+          'warn'
+        );
+        return;
+      }
+
+      if (ext !== 'docx') {
+        showImportStatus('<i class="fas fa-circle-xmark"></i> Unsupported file type. Please use .docx or .html files.', 'error');
+        return;
+      }
+
+      /* Check if mammoth is available */
+      if (typeof mammoth === 'undefined') {
+        showImportStatus('<i class="fas fa-circle-xmark"></i> DOCX conversion library failed to load. Please try pasting HTML instead.', 'error');
+        return;
+      }
+
+      showImportStatus('<i class="fas fa-spinner fa-spin"></i> Converting DOCX to HTML...', 'loading');
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, {
+          styleMap: [
+            "p[style-name='Title'] => h1:fresh",
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+            "p[style-name='Heading 4'] => h4:fresh",
+            "p[style-name='Quote'] => blockquote:fresh",
+            "p[style-name='Block Text'] => blockquote:fresh",
+            "p[style-name='List Paragraph'] => li:fresh",
+            "r[style-name='Strong'] => strong",
+            "r[style-name='Emphasis'] => em"
+          ]
+        });
+
+        const html = result.value;
+        const warnings = result.messages.filter(m => m.type === 'warning');
+
+        $('#importHtml').value = html;
+
+        if (warnings.length > 0) {
+          const warnSummary = warnings.length === 1
+            ? '1 minor warning'
+            : warnings.length + ' minor warnings';
+          showImportStatus(
+            `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted successfully (${warnSummary}). ` +
+            'Review the HTML below and click Import.' +
+            `<br><details style="margin-top:6px;font-size:12px;"><summary style="cursor:pointer;">Show warnings</summary>` +
+            `<ul style="margin:4px 0 0 16px;">${warnings.slice(0, 10).map(w => '<li>' + escapeHtml(w.message) + '</li>').join('')}` +
+            (warnings.length > 10 ? `<li>...and ${warnings.length - 10} more</li>` : '') +
+            '</ul></details>',
+            'success'
+          );
+        } else {
+          showImportStatus(
+            `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted successfully — review and click Import`,
+            'success'
+          );
+        }
+      } catch (err) {
+        showImportStatus(
+          '<i class="fas fa-circle-xmark"></i> Failed to convert DOCX: ' + escapeHtml(String(err.message || err)),
+          'error'
+        );
+      }
+    });
+
+    /* Import insert button */
     $('#importInsert').addEventListener('click', () => {
       const html = $('#importHtml').value.trim();
-      if (!html) { showToast('No HTML content to import'); return; }
+      if (!html) { showToast('No content to import'); return; }
       hideModal('modalImport');
       const hasContent = editor.innerText.trim().length > 0;
-      if (hasContent) {
-        showConfirmDialog('Replace Content', 'This will replace your current content. Continue?', () => {
-          editor.innerHTML = html;
-          updateStats();
-          updateOutline();
-          showToast('HTML imported successfully');
-        });
-      } else {
+      const doImport = () => {
         editor.innerHTML = html;
         updateStats();
         updateOutline();
-        showToast('HTML imported successfully');
+        showToast('Document imported successfully');
+      };
+      if (hasContent) {
+        showConfirmDialog('Replace Content', 'This will replace your current content. Continue?', doImport);
+      } else {
+        doImport();
       }
     });
 
