@@ -9,6 +9,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+  <!-- PDF.js for client-side PDF parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+    window.pdfjsLib = pdfjsLib;
+    window.pdfjsReady = true;
+    document.dispatchEvent(new Event('pdfjsReady'));
+  </script>
   <style>
     /* ===== CSS Custom Properties ===== */
     :root {
@@ -861,6 +870,25 @@
     }
     .font-info-bar .font-remove:hover { background: var(--red-soft); }
 
+    /* ===== PDF Progress Bar ===== */
+    .pdf-progress {
+      display: none;
+      height: 3px;
+      background: var(--border-light);
+      width: 100%;
+      margin-top: 8px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .pdf-progress.visible { display: block; }
+    .pdf-progress-bar {
+      height: 100%;
+      background: var(--teal);
+      border-radius: 2px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
       .sidebar { position: absolute; right: 0; top: 0; bottom: 0; z-index: 150; box-shadow: var(--shadow-lg); }
@@ -879,7 +907,7 @@
       <div class="brand">KBA<span class="brand-dot">.</span>Studio</div>
       <input type="text" class="top-bar-title" id="docTitle" placeholder="Untitled Article" spellcheck="false">
       <div class="top-bar-actions">
-        <button class="top-btn top-btn-ghost" id="btnImport" title="Import HTML or DOCX"><i class="fas fa-file-import"></i> <span class="btn-label">Import</span></button>
+        <button class="top-btn top-btn-ghost" id="btnImport" title="Import HTML, DOCX, or PDF"><i class="fas fa-file-import"></i> <span class="btn-label">Import</span></button>
         <button class="top-btn top-btn-ghost" id="btnTemplates" title="Templates"><i class="fas fa-layer-group"></i> <span class="btn-label">Templates</span></button>
         <button class="top-btn top-btn-ghost" id="btnShortcuts" title="Keyboard Shortcuts"><i class="fas fa-keyboard"></i></button>
         <button class="top-btn top-btn-accent" id="btnExport" title="Export as HTML"><i class="fas fa-download"></i> <span class="btn-label">Export</span></button>
@@ -1207,16 +1235,29 @@
         <div class="modal-field">
           <label>Upload a file to convert, or paste HTML directly:</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;margin-bottom:14px;">
-            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:140px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+            <!-- DOCX -->
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:120px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
               <i class="fas fa-file-word"></i> <span>.docx file</span>
               <input type="file" id="importDocx" accept=".docx,.DOCX" style="display:none;">
             </label>
-            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:140px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+            <!-- HTML -->
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:120px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
               <i class="fas fa-file-code"></i> <span>.html file</span>
               <input type="file" id="importFile" accept=".html,.htm" style="display:none;">
             </label>
+            <!-- PDF (NEW) -->
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);transition:all 0.15s;flex:1;min-width:120px;justify-content:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">
+              <i class="fas fa-file-pdf"></i> <span>.pdf file</span>
+              <input type="file" id="importPdf" accept=".pdf,.PDF" style="display:none;">
+            </label>
           </div>
         </div>
+
+        <!-- PDF progress bar -->
+        <div class="pdf-progress" id="pdfProgress">
+          <div class="pdf-progress-bar" id="pdfProgressBar"></div>
+        </div>
+
         <div id="importDocxStatus" style="display:none;padding:12px 16px;border-radius:var(--radius);margin-bottom:14px;font-size:13px;">
           <span id="importDocxMsg"></span>
         </div>
@@ -1304,7 +1345,7 @@
     const customFontGroup = $('#customFontGroup');
 
     /* ===== Custom Font Management ===== */
-    const customFonts = []; /* { name, blobUrl, base64DataUri, format } */
+    const customFonts = [];
 
     function getFontFormat(filename) {
       const ext = filename.split('.').pop().toLowerCase();
@@ -1321,17 +1362,7 @@
       });
     }
 
-    function readFileAsArrayBuffer(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-    }
-
     function registerCustomFont(name, base64DataUri, format) {
-      /* Create a @font-face style element */
       const styleEl = document.createElement('style');
       styleEl.id = 'custom-font-' + name.replace(/\s+/g, '-');
       styleEl.textContent = `@font-face { font-family: '${name}'; src: url('${base64DataUri}') format('${format}'); font-weight: normal; font-style: normal; font-display: swap; }`;
@@ -1353,85 +1384,59 @@
       const idx = customFonts.findIndex(f => f.name === name);
       if (idx === -1) return;
       const font = customFonts[idx];
-      /* Revoke blob URL */
       if (font.blobUrl) URL.revokeObjectURL(font.blobUrl);
-      /* Remove style element */
       const styleEl = document.getElementById('custom-font-' + name.replace(/\s+/g, '-'));
       if (styleEl) styleEl.remove();
-      /* Remove option from dropdown */
       const opt = customFontGroup.querySelector(`option[value="${name}"]`);
       if (opt) opt.remove();
-      /* Hide group if empty */
       if (customFontGroup.children.length === 0) customFontGroup.style.display = 'none';
       customFonts.splice(idx, 1);
-      /* Reset font selection */
       fontFamilySelect.value = '';
       fontFamilySelect.dispatchEvent(new Event('change'));
-      /* Hide info bar */
       $('#fontInfoBar').classList.remove('visible');
       showToast(`Font "${name}" removed`);
     }
 
-    /* Font upload handler */
     $('#fontUploadInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       e.target.value = '';
-
       const validExts = ['woff', 'woff2', 'ttf', 'otf'];
       const ext = file.name.split('.').pop().toLowerCase();
       if (!validExts.includes(ext)) {
         showToast('Unsupported format. Use .woff, .woff2, .ttf, or .otf');
         return;
       }
-
-      /* Derive font name from filename */
       let fontName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-      /* Check for duplicate */
       if (customFonts.some(f => f.name === fontName)) {
         showToast(`Font "${fontName}" is already loaded`);
         fontFamilySelect.value = fontName;
         fontFamilySelect.dispatchEvent(new Event('change'));
         return;
       }
-
       try {
         const format = getFontFormat(file.name);
         const base64DataUri = await readFileAsBase64(file);
         const blobUrl = URL.createObjectURL(file);
-
-        /* Register @font-face */
         registerCustomFont(fontName, base64DataUri, format);
-
-        /* Store font data */
         customFonts.push({ name: fontName, blobUrl, base64DataUri, format });
-
-        /* Add to dropdown and select it */
         addCustomFontOption(fontName);
-
-        /* Show info bar */
         $('#fontInfoName').textContent = fontName;
         $('#fontInfoBar').classList.add('visible');
-
         showToast(`Font "${fontName}" loaded successfully`);
       } catch (err) {
         showToast('Failed to load font file');
       }
     });
 
-    /* Font family select change handler */
     fontFamilySelect.addEventListener('change', () => {
       const val = fontFamilySelect.value;
       editor.focus();
       if (val) {
         document.execCommand('fontName', false, val);
       } else {
-        /* Reset to default editor font */
         document.execCommand('fontName', false, 'Source Serif 4');
       }
-
-      /* Show/hide font info bar for custom fonts */
       const isCustom = customFonts.some(f => f.name === val);
       if (isCustom) {
         $('#fontInfoName').textContent = val;
@@ -1441,7 +1446,6 @@
       }
     });
 
-    /* Font remove button */
     $('#fontRemoveBtn').addEventListener('click', () => {
       const currentFont = fontFamilySelect.value;
       const isCustom = customFonts.some(f => f.name === currentFont);
@@ -1452,7 +1456,6 @@
       }
     });
 
-    /* Set default paragraph separator */
     document.execCommand('defaultParagraphSeparator', false, 'p');
 
     /* ===== Toast Notifications ===== */
@@ -1471,15 +1474,12 @@
       $('#confirmMsg').textContent = message;
       showModal('modalConfirm');
       const okBtn = $('#confirmOk');
-      const handler = () => {
-        hideModal('modalConfirm');
-        okBtn.removeEventListener('click', handler);
-        onConfirm();
-      };
-      /* Remove any previous listeners by cloning */
       const newBtn = okBtn.cloneNode(true);
       okBtn.parentNode.replaceChild(newBtn, okBtn);
-      newBtn.addEventListener('click', handler);
+      newBtn.addEventListener('click', () => {
+        hideModal('modalConfirm');
+        onConfirm();
+      });
     }
 
     /* ===== Modal System ===== */
@@ -1494,7 +1494,6 @@
       if (!isSourceMode) editor.focus();
     }
 
-    /* Close modals on overlay click */
     $$('.modal-overlay').forEach(overlay => {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.classList.remove('visible');
@@ -1510,14 +1509,10 @@
       updateOutline();
     }
 
-    /* Toolbar buttons with data-cmd */
     $$('.tb[data-cmd]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        exec(btn.dataset.cmd);
-      });
+      btn.addEventListener('click', () => exec(btn.dataset.cmd));
     });
 
-    /* Format block select */
     formatSelect.addEventListener('change', () => {
       exec('formatBlock', '<' + formatSelect.value + '>');
     });
@@ -1542,33 +1537,23 @@
       cmds.forEach(cmd => {
         const btn = $(`.tb[data-cmd="${cmd}"]`);
         if (btn) {
-          try {
-            btn.classList.toggle('active', document.queryCommandState(cmd));
-          } catch (_e) { /* ignore */ }
+          try { btn.classList.toggle('active', document.queryCommandState(cmd)); }
+          catch (_e) {}
         }
       });
-      /* Update format select */
       try {
         const block = document.queryCommandValue('formatBlock');
         const normalized = block.replace(/</g, '').replace(/>/g, '').toLowerCase();
-        if (formatSelect.querySelector(`option[value="${normalized}"]`)) {
-          formatSelect.value = normalized;
-        }
-      } catch (_e) { /* ignore */ }
-
-      /* Update font family select */
+        if (formatSelect.querySelector(`option[value="${normalized}"]`)) formatSelect.value = normalized;
+      } catch (_e) {}
       try {
         const currentFont = document.queryCommandValue('fontName');
         if (currentFont) {
           const cleanFont = currentFont.replace(/['"]/g, '');
           const matchOpt = fontFamilySelect.querySelector(`option[value="${cleanFont}"]`);
-          if (matchOpt) {
-            fontFamilySelect.value = cleanFont;
-          }
+          if (matchOpt) fontFamilySelect.value = cleanFont;
         }
-      } catch (_e2) { /* ignore */ }
-
-      /* Table context */
+      } catch (_e2) {}
       checkTableContext();
     }
 
@@ -1576,9 +1561,7 @@
     let savedSelection = null;
     function saveSelection() {
       const sel = window.getSelection();
-      if (sel.rangeCount > 0) {
-        savedSelection = sel.getRangeAt(0).cloneRange();
-      }
+      if (sel.rangeCount > 0) savedSelection = sel.getRangeAt(0).cloneRange();
     }
     function restoreSelection() {
       if (savedSelection) {
@@ -1591,8 +1574,7 @@
     $('#btnLink').addEventListener('click', () => {
       saveSelection();
       const sel = window.getSelection();
-      const selectedText = sel.toString();
-      $('#linkText').value = selectedText;
+      $('#linkText').value = sel.toString();
       $('#linkUrl').value = '';
       showModal('modalLink');
     });
@@ -1608,9 +1590,7 @@
         const range = sel.getRangeAt(0);
         range.deleteContents();
         const a = document.createElement('a');
-        a.href = url;
-        a.textContent = text;
-        a.target = '_blank';
+        a.href = url; a.textContent = text; a.target = '_blank';
         range.insertNode(a);
         range.setStartAfter(a);
         range.collapse(true);
@@ -1634,8 +1614,7 @@
       hideModal('modalImage');
       restoreSelection();
       const alt = $('#imageAlt').value.trim();
-      const img = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="max-width:100%;">`;
-      document.execCommand('insertHTML', false, img);
+      document.execCommand('insertHTML', false, `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" style="max-width:100%;">`);
       updateStats();
     });
 
@@ -1652,7 +1631,6 @@
       const cols = parseInt($('#tableCols').value) || 3;
       const hasHeader = $('#tableHeader').checked;
       hideModal('modalTable');
-
       let html = '<table>';
       for (let r = 0; r < rows; r++) {
         html += '<tr>';
@@ -1680,16 +1658,10 @@
         if (node.nodeName === 'TABLE') { currentTableEl = node; break; }
         node = node.parentNode;
       }
-      if (currentTableEl) {
-        $('#tableCtx').classList.add('visible');
-      } else {
-        hideTableCtx();
-      }
+      if (currentTableEl) $('#tableCtx').classList.add('visible');
+      else hideTableCtx();
     }
-    function hideTableCtx() {
-      $('#tableCtx').classList.remove('visible');
-      currentTableEl = null;
-    }
+    function hideTableCtx() { $('#tableCtx').classList.remove('visible'); currentTableEl = null; }
     function getCurrentCell() {
       const sel = window.getSelection();
       if (!sel.rangeCount) return null;
@@ -1702,80 +1674,54 @@
     }
 
     $('#tblRowAbove').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell) return;
+      const cell = getCurrentCell(); if (!cell) return;
       const row = cell.parentNode;
       const newRow = row.cloneNode(true);
       Array.from(newRow.cells).forEach(c => { c.innerHTML = '&nbsp;'; });
       row.parentNode.insertBefore(newRow, row);
     });
     $('#tblRowBelow').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell) return;
+      const cell = getCurrentCell(); if (!cell) return;
       const row = cell.parentNode;
       const newRow = row.cloneNode(true);
       Array.from(newRow.cells).forEach(c => { c.innerHTML = '&nbsp;'; });
       row.parentNode.insertBefore(newRow, row.nextSibling);
     });
     $('#tblColLeft').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell || !currentTableEl) return;
+      const cell = getCurrentCell(); if (!cell || !currentTableEl) return;
       const idx = cell.cellIndex;
       Array.from(currentTableEl.rows).forEach(row => {
-        const ref = row.cells[idx];
-        const nc = ref.cloneNode(false);
-        nc.innerHTML = '&nbsp;';
+        const ref = row.cells[idx]; const nc = ref.cloneNode(false); nc.innerHTML = '&nbsp;';
         row.insertBefore(nc, ref);
       });
     });
     $('#tblColRight').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell || !currentTableEl) return;
+      const cell = getCurrentCell(); if (!cell || !currentTableEl) return;
       const idx = cell.cellIndex;
       Array.from(currentTableEl.rows).forEach(row => {
-        const ref = row.cells[idx];
-        const nc = ref.cloneNode(false);
-        nc.innerHTML = '&nbsp;';
+        const ref = row.cells[idx]; const nc = ref.cloneNode(false); nc.innerHTML = '&nbsp;';
         row.insertBefore(nc, ref.nextSibling);
       });
     });
     $('#tblDelRow').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell || !currentTableEl) return;
+      const cell = getCurrentCell(); if (!cell || !currentTableEl) return;
       const row = cell.parentNode;
-      if (currentTableEl.rows.length <= 1) {
-        currentTableEl.remove();
-        hideTableCtx();
-      } else {
-        row.remove();
-      }
+      if (currentTableEl.rows.length <= 1) { currentTableEl.remove(); hideTableCtx(); }
+      else row.remove();
     });
     $('#tblDelCol').addEventListener('click', () => {
-      const cell = getCurrentCell();
-      if (!cell || !currentTableEl) return;
+      const cell = getCurrentCell(); if (!cell || !currentTableEl) return;
       const idx = cell.cellIndex;
-      if (currentTableEl.rows[0].cells.length <= 1) {
-        currentTableEl.remove();
-        hideTableCtx();
-      } else {
-        Array.from(currentTableEl.rows).forEach(row => {
-          if (row.cells[idx]) row.cells[idx].remove();
-        });
-      }
+      if (currentTableEl.rows[0].cells.length <= 1) { currentTableEl.remove(); hideTableCtx(); }
+      else Array.from(currentTableEl.rows).forEach(row => { if (row.cells[idx]) row.cells[idx].remove(); });
     });
     $('#tblDelete').addEventListener('click', () => {
-      if (currentTableEl) {
-        currentTableEl.remove();
-        hideTableCtx();
-      }
+      if (currentTableEl) { currentTableEl.remove(); hideTableCtx(); }
     });
 
     /* ===== Callout Dropdown ===== */
     const calloutMenu = $('#calloutMenu');
-    $('#btnCallout').addEventListener('click', (e) => {
-      e.stopPropagation();
-      calloutMenu.classList.toggle('open');
-    });
+    $('#btnCallout').addEventListener('click', (e) => { e.stopPropagation(); calloutMenu.classList.toggle('open'); });
     document.addEventListener('click', () => calloutMenu.classList.remove('open'));
 
     $$('[data-callout]').forEach(btn => {
@@ -1810,7 +1756,6 @@
       }
     });
 
-    /* Simple HTML beautifier */
     function beautifyHtml(html) {
       let result = '';
       let indent = 0;
@@ -1818,13 +1763,9 @@
       tokens.forEach(token => {
         const trimmed = token.trim();
         if (!trimmed) return;
-        if (trimmed.match(/^<\/(div|p|h[1-6]|ul|ol|li|table|tr|thead|tbody|blockquote|pre|section|article)/i)) {
-          indent = Math.max(0, indent - 1);
-        }
+        if (trimmed.match(/^<\/(div|p|h[1-6]|ul|ol|li|table|tr|thead|tbody|blockquote|pre|section|article)/i)) indent = Math.max(0, indent - 1);
         result += '  '.repeat(indent) + trimmed + '\n';
-        if (trimmed.match(/^<(div|p|h[1-6]|ul|ol|li|table|tr|thead|tbody|blockquote|pre|section|article)/i) && !trimmed.match(/\/>/)) {
-          indent++;
-        }
+        if (trimmed.match(/^<(div|p|h[1-6]|ul|ol|li|table|tr|thead|tbody|blockquote|pre|section|article)/i) && !trimmed.match(/\//)) indent++;
       });
       return result.trim();
     }
@@ -1837,16 +1778,12 @@
     function toggleFindBar() {
       const bar = $('#findBar');
       const isVis = bar.classList.contains('visible');
-      if (isVis) {
-        closeFindBar();
-      } else {
+      if (isVis) { closeFindBar(); }
+      else {
         bar.classList.add('visible');
         $('#findInput').focus();
-        /* Pre-fill with selection */
         const sel = window.getSelection();
-        if (sel.toString().trim()) {
-          $('#findInput').value = sel.toString().trim();
-        }
+        if (sel.toString().trim()) $('#findInput').value = sel.toString().trim();
       }
     }
     function closeFindBar() {
@@ -1863,28 +1800,21 @@
       clearFindHighlights();
       const term = $('#findInput').value;
       if (!term) { $('#findCount').textContent = ''; return; }
-
       const regex = new RegExp(escapeRegex(term), 'gi');
       const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
       const textNodes = [];
       while (walker.nextNode()) textNodes.push(walker.currentNode);
-
       findMatches = [];
       for (let i = textNodes.length - 1; i >= 0; i--) {
         const node = textNodes[i];
-        /* Skip nodes inside find highlights (shouldn't exist, but safety) */
         if (node.parentNode.classList && node.parentNode.classList.contains('find-hl')) continue;
-
         const text = node.textContent;
         const matches = [...text.matchAll(regex)];
         if (matches.length === 0) continue;
-
         const fragment = document.createDocumentFragment();
         let lastIdx = 0;
         matches.forEach(match => {
-          if (match.index > lastIdx) {
-            fragment.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
-          }
+          if (match.index > lastIdx) fragment.appendChild(document.createTextNode(text.slice(lastIdx, match.index)));
           const mark = document.createElement('mark');
           mark.className = 'find-hl';
           mark.textContent = match[0];
@@ -1892,26 +1822,20 @@
           findMatches.unshift(mark);
           lastIdx = match.index + match[0].length;
         });
-        if (lastIdx < text.length) {
-          fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
-        }
+        if (lastIdx < text.length) fragment.appendChild(document.createTextNode(text.slice(lastIdx)));
         node.parentNode.replaceChild(fragment, node);
       }
-
       if (findMatches.length > 0) {
         currentMatchIdx = 0;
         findMatches[0].classList.add('current');
         findMatches[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
-      $('#findCount').textContent = findMatches.length > 0
-        ? `${currentMatchIdx + 1} of ${findMatches.length}`
-        : 'No matches';
+      $('#findCount').textContent = findMatches.length > 0 ? `${currentMatchIdx + 1} of ${findMatches.length}` : 'No matches';
     }
 
     function clearFindHighlights() {
       editor.querySelectorAll('mark.find-hl').forEach(mark => {
-        const textNode = document.createTextNode(mark.textContent);
-        mark.parentNode.replaceChild(textNode, mark);
+        mark.parentNode.replaceChild(document.createTextNode(mark.textContent), mark);
       });
       editor.normalize();
       findMatches = [];
@@ -1934,16 +1858,13 @@
       if (e.key === 'Enter') { e.preventDefault(); navigateFind(e.shiftKey ? -1 : 1); }
       if (e.key === 'Escape') closeFindBar();
     });
-    $('#replaceInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeFindBar();
-    });
+    $('#replaceInput').addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFindBar(); });
 
     $('#replaceOne').addEventListener('click', () => {
       if (findMatches.length === 0 || currentMatchIdx < 0) return;
       const repText = $('#replaceInput').value;
-      findMatches[currentMatchIdx].textContent = repText;
       findMatches[currentMatchIdx].classList.remove('find-hl', 'current');
-      const textNode = document.createTextNode(findMatches[currentMatchIdx].textContent);
+      const textNode = document.createTextNode(repText);
       findMatches[currentMatchIdx].parentNode.replaceChild(textNode, findMatches[currentMatchIdx]);
       findMatches.splice(currentMatchIdx, 1);
       if (findMatches.length > 0) {
@@ -1963,8 +1884,7 @@
       if (findMatches.length === 0) return;
       const repText = $('#replaceInput').value;
       findMatches.forEach(mark => {
-        const textNode = document.createTextNode(repText);
-        mark.parentNode.replaceChild(textNode, mark);
+        mark.parentNode.replaceChild(document.createTextNode(repText), mark);
       });
       editor.normalize();
       findMatches = [];
@@ -1996,16 +1916,15 @@
         return;
       }
       container.innerHTML = '';
-      headings.forEach((h, i) => {
+      headings.forEach(h => {
         const level = h.tagName.charAt(1);
         const btn = document.createElement('button');
         btn.className = 'outline-item';
         btn.dataset.level = level;
-        btn.textContent = h.textContent || `(empty heading)`;
+        btn.textContent = h.textContent || '(empty heading)';
         btn.title = h.textContent;
         btn.addEventListener('click', () => {
           h.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          /* Flash highlight */
           h.style.transition = 'background 0.3s';
           h.style.background = 'var(--accent-soft)';
           setTimeout(() => { h.style.background = ''; }, 1200);
@@ -2037,137 +1956,31 @@
     /* ===== Templates ===== */
     const templates = [
       {
-        id: 'howto',
-        icon: '📋',
-        title: 'How-To Guide',
-        desc: 'Step-by-step instructions for completing a task.',
-        html: `<h1>How to [Task Name]</h1>
-<p class="kba-meta">Last updated: ${new Date().toLocaleDateString()} | Category: [Category]</p>
-<h2>Overview</h2>
-<p>Brief description of what this guide covers and who it is intended for.</p>
-<h2>Prerequisites</h2>
-<ul><li>Prerequisite 1</li><li>Prerequisite 2</li><li>Prerequisite 3</li></ul>
-<h2>Steps</h2>
-<h3>Step 1: [First Step Title]</h3>
-<p>Detailed description of the first step...</p>
-<h3>Step 2: [Second Step Title]</h3>
-<p>Detailed description of the second step...</p>
-<h3>Step 3: [Third Step Title]</h3>
-<p>Detailed description of the third step...</p>
-<h2>Expected Outcome</h2>
-<p>Describe what the user should see after successfully completing all steps.</p>
-<div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> Add any additional tips or important information here.</p></div>
-<h2>Related Articles</h2>
-<ul><li><a href="#">Related Article 1</a></li><li><a href="#">Related Article 2</a></li></ul>`
+        id: 'howto', icon: '📋', title: 'How-To Guide', desc: 'Step-by-step instructions for completing a task.',
+        html: `<h1>How to [Task Name]</h1><p class="kba-meta">Last updated: ${new Date().toLocaleDateString()} | Category: [Category]</p><h2>Overview</h2><p>Brief description of what this guide covers and who it is intended for.</p><h2>Prerequisites</h2><ul><li>Prerequisite 1</li><li>Prerequisite 2</li><li>Prerequisite 3</li></ul><h2>Steps</h2><h3>Step 1: [First Step Title]</h3><p>Detailed description of the first step...</p><h3>Step 2: [Second Step Title]</h3><p>Detailed description of the second step...</p><h3>Step 3: [Third Step Title]</h3><p>Detailed description of the third step...</p><h2>Expected Outcome</h2><p>Describe what the user should see after successfully completing all steps.</p><div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> Add any additional tips or important information here.</p></div><h2>Related Articles</h2><ul><li><a href="#">Related Article 1</a></li><li><a href="#">Related Article 2</a></li></ul>`
       },
       {
-        id: 'faq',
-        icon: '❓',
-        title: 'FAQ Article',
-        desc: 'Question and answer format for common inquiries.',
-        html: `<h1>Frequently Asked Questions: [Topic]</h1>
-<p class="kba-meta">Last updated: ${new Date().toLocaleDateString()}</p>
-<h2>Q: [First Question]?</h2>
-<p><strong>A:</strong> Provide a clear and concise answer to the question here.</p>
-<hr>
-<h2>Q: [Second Question]?</h2>
-<p><strong>A:</strong> Provide a clear and concise answer to the question here.</p>
-<hr>
-<h2>Q: [Third Question]?</h2>
-<p><strong>A:</strong> Provide a clear and concise answer to the question here.</p>
-<hr>
-<div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> If you have a question that is not addressed here, please contact support.</p></div>`
+        id: 'faq', icon: '❓', title: 'FAQ Article', desc: 'Question and answer format for common inquiries.',
+        html: `<h1>Frequently Asked Questions: [Topic]</h1><p class="kba-meta">Last updated: ${new Date().toLocaleDateString()}</p><h2>Q: [First Question]?</h2><p><strong>A:</strong> Provide a clear and concise answer to the question here.</p><hr><h2>Q: [Second Question]?</h2><p><strong>A:</strong> Provide a clear and concise answer to the question here.</p><hr><h2>Q: [Third Question]?</h2><p><strong>A:</strong> Provide a clear and concise answer to the question here.</p><hr><div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> If you have a question that is not addressed here, please contact support.</p></div>`
       },
       {
-        id: 'troubleshoot',
-        icon: '🔧',
-        title: 'Troubleshooting',
-        desc: 'Diagnose and resolve common issues.',
-        html: `<h1>Troubleshooting: [Issue Name]</h1>
-<p class="kba-meta">Last updated: ${new Date().toLocaleDateString()} | Severity: [Low/Medium/High]</p>
-<h2>Symptoms</h2>
-<ul><li>Symptom or error message 1</li><li>Symptom or error message 2</li></ul>
-<h2>Cause</h2>
-<p>Explain the root cause or common reasons why this issue occurs.</p>
-<h2>Solution</h2>
-<h3>Method 1: [Quick Fix]</h3>
-<ol><li>First step of the solution</li><li>Second step of the solution</li><li>Verify the issue is resolved</li></ol>
-<h3>Method 2: [Alternative Approach]</h3>
-<ol><li>First step of the alternative</li><li>Second step of the alternative</li></ol>
-<div class="kba-callout kba-callout-warning"><p><strong>⚠️ Warning:</strong> Be careful when modifying system settings. Always create a backup first.</p></div>
-<h2>Prevention</h2>
-<p>Steps to prevent this issue from recurring in the future.</p>
-<h2>Still Having Issues?</h2>
-<p>If the above solutions do not resolve your issue, please escalate to <a href="#">Level 2 Support</a>.</p>`
+        id: 'troubleshoot', icon: '🔧', title: 'Troubleshooting', desc: 'Diagnose and resolve common issues.',
+        html: `<h1>Troubleshooting: [Issue Name]</h1><p class="kba-meta">Last updated: ${new Date().toLocaleDateString()} | Severity: [Low/Medium/High]</p><h2>Symptoms</h2><ul><li>Symptom or error message 1</li><li>Symptom or error message 2</li></ul><h2>Cause</h2><p>Explain the root cause or common reasons why this issue occurs.</p><h2>Solution</h2><h3>Method 1: [Quick Fix]</h3><ol><li>First step of the solution</li><li>Second step of the solution</li><li>Verify the issue is resolved</li></ol><h3>Method 2: [Alternative Approach]</h3><ol><li>First step of the alternative</li><li>Second step of the alternative</li></ol><div class="kba-callout kba-callout-warning"><p><strong>⚠️ Warning:</strong> Be careful when modifying system settings. Always create a backup first.</p></div><h2>Prevention</h2><p>Steps to prevent this issue from recurring in the future.</p><h2>Still Having Issues?</h2><p>If the above solutions do not resolve your issue, please escalate to <a href="#">Level 2 Support</a>.</p>`
       },
       {
-        id: 'release',
-        icon: '🚀',
-        title: 'Release Notes',
-        desc: 'Document version changes and updates.',
-        html: `<h1>Release Notes — v[X.Y.Z]</h1>
-<p class="kba-meta">Release Date: ${new Date().toLocaleDateString()} | Product: [Product Name]</p>
-<h2>🚀 New Features</h2>
-<ul><li><strong>[Feature Name]</strong> — Brief description of the new feature and its benefit.</li><li><strong>[Feature Name]</strong> — Brief description of the new feature and its benefit.</li></ul>
-<h2>🔧 Improvements</h2>
-<ul><li>Description of improvement or enhancement</li><li>Description of improvement or enhancement</li></ul>
-<h2>🐛 Bug Fixes</h2>
-<ul><li>Fixed an issue where [describe bug and resolution]</li><li>Fixed an issue where [describe bug and resolution]</li></ul>
-<h2>⚠️ Known Issues</h2>
-<ul><li>[Known issue description and workaround if available]</li></ul>
-<div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> For upgrade instructions, refer to the <a href="#">Upgrade Guide</a>.</p></div>
-<h2>Deprecations</h2>
-<ul><li>[Feature/API] will be removed in version [X.Y]. Please migrate to [alternative].</li></ul>`
+        id: 'release', icon: '🚀', title: 'Release Notes', desc: 'Document version changes and updates.',
+        html: `<h1>Release Notes — v[X.Y.Z]</h1><p class="kba-meta">Release Date: ${new Date().toLocaleDateString()} | Product: [Product Name]</p><h2>🚀 New Features</h2><ul><li><strong>[Feature Name]</strong> — Brief description of the new feature and its benefit.</li><li><strong>[Feature Name]</strong> — Brief description of the new feature and its benefit.</li></ul><h2>🔧 Improvements</h2><ul><li>Description of improvement or enhancement</li><li>Description of improvement or enhancement</li></ul><h2>🐛 Bug Fixes</h2><ul><li>Fixed an issue where [describe bug and resolution]</li><li>Fixed an issue where [describe bug and resolution]</li></ul><h2>⚠️ Known Issues</h2><ul><li>[Known issue description and workaround if available]</li></ul><div class="kba-callout kba-callout-info"><p><strong>ℹ️ Note:</strong> For upgrade instructions, refer to the <a href="#">Upgrade Guide</a>.</p></div><h2>Deprecations</h2><ul><li>[Feature/API] will be removed in version [X.Y]. Please migrate to [alternative].</li></ul>`
       },
       {
-        id: 'policy',
-        icon: '📜',
-        title: 'Policy / Process',
-        desc: 'Document internal policies or standard processes.',
-        html: `<h1>[Policy / Process Name]</h1>
-<p class="kba-meta">Effective Date: ${new Date().toLocaleDateString()} | Owner: [Department/Team] | Review Cycle: Annual</p>
-<h2>Purpose</h2>
-<p>Describe the purpose and scope of this policy or process.</p>
-<h2>Scope</h2>
-<p>Define who this policy applies to and under what circumstances.</p>
-<h2>Policy Statement</h2>
-<p>Clearly state the policy rules, requirements, or process steps.</p>
-<h3>Section 1: [Topic]</h3>
-<p>Details for this section...</p>
-<h3>Section 2: [Topic]</h3>
-<p>Details for this section...</p>
-<h2>Roles & Responsibilities</h2>
-<table><tr><th>Role</th><th>Responsibility</th></tr><tr><td>[Role Name]</td><td>[Description of responsibilities]</td></tr><tr><td>[Role Name]</td><td>[Description of responsibilities]</td></tr></table>
-<h2>Exceptions</h2>
-<p>Document any exceptions to this policy and the approval process for exceptions.</p>
-<div class="kba-callout kba-callout-danger"><p><strong>🚫 Important:</strong> Non-compliance with this policy may result in [consequence].</p></div>
-<h2>Revision History</h2>
-<table><tr><th>Version</th><th>Date</th><th>Author</th><th>Changes</th></tr><tr><td>1.0</td><td>${new Date().toLocaleDateString()}</td><td>[Author]</td><td>Initial version</td></tr></table>`
+        id: 'policy', icon: '📜', title: 'Policy / Process', desc: 'Document internal policies or standard processes.',
+        html: `<h1>[Policy / Process Name]</h1><p class="kba-meta">Effective Date: ${new Date().toLocaleDateString()} | Owner: [Department/Team] | Review Cycle: Annual</p><h2>Purpose</h2><p>Describe the purpose and scope of this policy or process.</p><h2>Scope</h2><p>Define who this policy applies to and under what circumstances.</p><h2>Policy Statement</h2><p>Clearly state the policy rules, requirements, or process steps.</p><h3>Section 1: [Topic]</h3><p>Details for this section...</p><h3>Section 2: [Topic]</h3><p>Details for this section...</p><h2>Roles &amp; Responsibilities</h2><table><tr><th>Role</th><th>Responsibility</th></tr><tr><td>[Role Name]</td><td>[Description of responsibilities]</td></tr><tr><td>[Role Name]</td><td>[Description of responsibilities]</td></tr></table><h2>Exceptions</h2><p>Document any exceptions to this policy and the approval process for exceptions.</p><div class="kba-callout kba-callout-danger"><p><strong>🚫 Important:</strong> Non-compliance with this policy may result in [consequence].</p></div><h2>Revision History</h2><table><tr><th>Version</th><th>Date</th><th>Author</th><th>Changes</th></tr><tr><td>1.0</td><td>${new Date().toLocaleDateString()}</td><td>[Author]</td><td>Initial version</td></tr></table>`
       },
       {
-        id: 'general',
-        icon: '📄',
-        title: 'General Article',
-        desc: 'A flexible template for any knowledge base topic.',
-        html: `<h1>[Article Title]</h1>
-<p class="kba-meta">Author: [Name] | Published: ${new Date().toLocaleDateString()} | Category: [Category]</p>
-<h2>Introduction</h2>
-<p>Provide an overview of the topic covered in this article.</p>
-<h2>Details</h2>
-<p>Expand on the topic with detailed information, explanations, and examples.</p>
-<h3>Subtopic A</h3>
-<p>Information about subtopic A...</p>
-<h3>Subtopic B</h3>
-<p>Information about subtopic B...</p>
-<h2>Summary</h2>
-<p>Recap the key points from this article.</p>
-<div class="kba-callout kba-callout-success"><p><strong>✅ Key Takeaway:</strong> Highlight the most important point for the reader.</p></div>
-<h2>Related Articles</h2>
-<ul><li><a href="#">Related Article 1</a></li><li><a href="#">Related Article 2</a></li></ul>`
+        id: 'general', icon: '📄', title: 'General Article', desc: 'A flexible template for any knowledge base topic.',
+        html: `<h1>[Article Title]</h1><p class="kba-meta">Author: [Name] | Published: ${new Date().toLocaleDateString()} | Category: [Category]</p><h2>Introduction</h2><p>Provide an overview of the topic covered in this article.</p><h2>Details</h2><p>Expand on the topic with detailed information, explanations, and examples.</p><h3>Subtopic A</h3><p>Information about subtopic A...</p><h3>Subtopic B</h3><p>Information about subtopic B...</p><h2>Summary</h2><p>Recap the key points from this article.</p><div class="kba-callout kba-callout-success"><p><strong>✅ Key Takeaway:</strong> Highlight the most important point for the reader.</p></div><h2>Related Articles</h2><ul><li><a href="#">Related Article 1</a></li><li><a href="#">Related Article 2</a></li></ul>`
       }
     ];
 
-    /* Render template cards */
     const templateGrid = $('#templateGrid');
     templates.forEach(t => {
       const card = document.createElement('div');
@@ -2178,16 +1991,10 @@
         const hasContent = editor.innerText.trim().length > 0;
         if (hasContent) {
           showConfirmDialog('Replace Content', 'This will replace your current content. Continue?', () => {
-            editor.innerHTML = t.html;
-            updateStats();
-            updateOutline();
-            showToast(`"${t.title}" template loaded`);
+            editor.innerHTML = t.html; updateStats(); updateOutline(); showToast(`"${t.title}" template loaded`);
           });
         } else {
-          editor.innerHTML = t.html;
-          updateStats();
-          updateOutline();
-          showToast(`"${t.title}" template loaded`);
+          editor.innerHTML = t.html; updateStats(); updateOutline(); showToast(`"${t.title}" template loaded`);
         }
       });
       templateGrid.appendChild(card);
@@ -2202,37 +2009,33 @@
     function showImportStatus(msg, type) {
       importStatusEl.style.display = 'block';
       importStatusMsg.innerHTML = msg;
-      if (type === 'loading') {
-        importStatusEl.style.background = 'var(--teal-soft)';
-        importStatusEl.style.color = 'var(--teal)';
-      } else if (type === 'success') {
-        importStatusEl.style.background = 'var(--green-soft)';
-        importStatusEl.style.color = 'var(--green)';
-      } else if (type === 'error') {
-        importStatusEl.style.background = 'var(--red-soft)';
-        importStatusEl.style.color = 'var(--accent)';
-      } else {
-        importStatusEl.style.background = 'var(--amber-soft)';
-        importStatusEl.style.color = 'var(--amber)';
-      }
+      const colors = {
+        loading: ['var(--teal-soft)', 'var(--teal)'],
+        success: ['var(--green-soft)', 'var(--green)'],
+        error:   ['var(--red-soft)',   'var(--accent)'],
+        warn:    ['var(--amber-soft)', 'var(--amber)']
+      };
+      const [bg, fg] = colors[type] || colors.warn;
+      importStatusEl.style.background = bg;
+      importStatusEl.style.color = fg;
     }
     function hideImportStatus() { importStatusEl.style.display = 'none'; }
 
     $('#btnImport').addEventListener('click', () => {
       $('#importHtml').value = '';
       hideImportStatus();
+      $('#pdfProgress').classList.remove('visible');
+      $('#pdfProgressBar').style.width = '0%';
       showModal('modalImport');
     });
 
     /* HTML file import */
     $('#importFile').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const file = e.target.files[0]; if (!file) return;
       hideImportStatus();
       const reader = new FileReader();
       reader.onload = (ev) => {
         let content = ev.target.result;
-        /* Extract body content if full HTML document */
         const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
         if (bodyMatch) content = bodyMatch[1];
         $('#importHtml').value = content;
@@ -2244,38 +2047,25 @@
 
     /* DOCX file import */
     $('#importDocx').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+      const file = e.target.files[0]; if (!file) return;
       e.target.value = '';
-
       const ext = file.name.split('.').pop().toLowerCase();
-
-      /* Check for old .doc format */
       if (ext === 'doc') {
-        showImportStatus(
-          '<i class="fas fa-triangle-exclamation"></i> <strong>.doc format is not supported.</strong> ' +
-          'Please save your document as <strong>.docx</strong> in Word (File → Save As → .docx) and try again.',
-          'warn'
-        );
+        showImportStatus('<i class="fas fa-triangle-exclamation"></i> <strong>.doc format is not supported.</strong> Please save as <strong>.docx</strong> in Word (File → Save As → .docx) and try again.', 'warn');
         return;
       }
-
       if (ext !== 'docx') {
         showImportStatus('<i class="fas fa-circle-xmark"></i> Unsupported file type. Please use .docx or .html files.', 'error');
         return;
       }
-
-      /* Check if mammoth is available */
       if (typeof mammoth === 'undefined') {
         showImportStatus('<i class="fas fa-circle-xmark"></i> DOCX conversion library failed to load. Please try pasting HTML instead.', 'error');
         return;
       }
-
       showImportStatus('<i class="fas fa-spinner fa-spin"></i> Converting DOCX to HTML...', 'loading');
-
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, {
+        const result = await mammoth.convertToHtml({ arrayBuffer }, {
           styleMap: [
             "p[style-name='Title'] => h1:fresh",
             "p[style-name='Heading 1'] => h1:fresh",
@@ -2289,52 +2079,282 @@
             "r[style-name='Emphasis'] => em"
           ]
         });
-
-        const html = result.value;
+        $('#importHtml').value = result.value;
         const warnings = result.messages.filter(m => m.type === 'warning');
-
-        $('#importHtml').value = html;
-
         if (warnings.length > 0) {
-          const warnSummary = warnings.length === 1
-            ? '1 minor warning'
-            : warnings.length + ' minor warnings';
           showImportStatus(
-            `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted successfully (${warnSummary}). ` +
-            'Review the HTML below and click Import.' +
-            `<br><details style="margin-top:6px;font-size:12px;"><summary style="cursor:pointer;">Show warnings</summary>` +
-            `<ul style="margin:4px 0 0 16px;">${warnings.slice(0, 10).map(w => '<li>' + escapeHtml(w.message) + '</li>').join('')}` +
-            (warnings.length > 10 ? `<li>...and ${warnings.length - 10} more</li>` : '') +
-            '</ul></details>',
+            `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted (${warnings.length} warning${warnings.length > 1 ? 's' : ''}). Review below and click Import.` +
+            `<details style="margin-top:6px;font-size:12px;"><summary style="cursor:pointer;">Show warnings</summary><ul style="margin:4px 0 0 16px;">${warnings.slice(0,10).map(w=>'<li>'+escapeHtml(w.message)+'</li>').join('')}${warnings.length>10?`<li>...and ${warnings.length-10} more</li>`:''}</ul></details>`,
             'success'
           );
         } else {
-          showImportStatus(
-            `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted successfully — review and click Import`,
-            'success'
-          );
+          showImportStatus(`<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted successfully — review and click Import`, 'success');
         }
       } catch (err) {
+        showImportStatus('<i class="fas fa-circle-xmark"></i> Failed to convert DOCX: ' + escapeHtml(String(err.message || err)), 'error');
+      }
+    });
+
+    /* =====================================================
+       PDF IMPORT — powered by PDF.js (client-side)
+       ===================================================== */
+
+    $('#importPdf').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      e.target.value = '';
+
+      hideImportStatus();
+      $('#importHtml').value = '';
+
+      /* Wait for PDF.js to be ready */
+      if (!window.pdfjsLib) {
+        showImportStatus('<i class="fas fa-spinner fa-spin"></i> Loading PDF engine...', 'loading');
+        await new Promise(resolve => {
+          if (window.pdfjsReady) return resolve();
+          document.addEventListener('pdfjsReady', resolve, { once: true });
+          setTimeout(resolve, 5000); /* fallback timeout */
+        });
+      }
+
+      if (!window.pdfjsLib) {
+        showImportStatus('<i class="fas fa-circle-xmark"></i> PDF engine failed to load. Please try a different browser.', 'error');
+        return;
+      }
+
+      showImportStatus('<i class="fas fa-spinner fa-spin"></i> Reading PDF...', 'loading');
+      const progressBar = $('#pdfProgressBar');
+      const progressEl = $('#pdfProgress');
+      progressEl.classList.add('visible');
+      progressBar.style.width = '5%';
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const numPages = pdfDoc.numPages;
+
+        /* Pull PDF metadata for doc title hint */
+        const meta = await pdfDoc.getMetadata().catch(() => null);
+        const pdfTitle = meta && meta.info && meta.info.Title ? meta.info.Title.trim() : '';
+        if (pdfTitle && !$('#docTitle').value.trim()) {
+          $('#docTitle').value = pdfTitle;
+        }
+
+        /* Collect all text items with position + style info across all pages */
+        const allPageData = [];
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          progressBar.style.width = Math.round((pageNum / numPages) * 70) + '%';
+          const page = await pdfDoc.getPage(pageNum);
+          const textContent = await page.getTextContent({ includeMarkedContent: false });
+          const viewport = page.getViewport({ scale: 1 });
+
+          /* Group items into lines by proximity of y-coordinate */
+          const items = textContent.items.filter(item => item.str && item.str.trim() !== '');
+
+          allPageData.push({ pageNum, items, viewport, height: viewport.height });
+        }
+
+        progressBar.style.width = '80%';
+
+        /* ---- Structure detection ---- */
+        const html = convertPdfPagesToHtml(allPageData, numPages);
+
+        progressBar.style.width = '100%';
+        $('#importHtml').value = html;
+
+        const wordCount = (html.match(/<\/p>|<\/li>|<\/h[1-6]>/gi) || []).length;
+
         showImportStatus(
-          '<i class="fas fa-circle-xmark"></i> Failed to convert DOCX: ' + escapeHtml(String(err.message || err)),
+          `<i class="fas fa-circle-check"></i> <strong>${escapeHtml(file.name)}</strong> converted (${numPages} page${numPages > 1 ? 's' : ''}). Review below and click Import.` +
+          (numPages > 20 ? '<br><small style="opacity:0.8">Tip: Complex layouts or scanned PDFs may need minor cleanup after import.</small>' : ''),
+          'success'
+        );
+
+        setTimeout(() => progressEl.classList.remove('visible'), 800);
+
+      } catch (err) {
+        progressEl.classList.remove('visible');
+        console.error('PDF import error:', err);
+        showImportStatus(
+          '<i class="fas fa-circle-xmark"></i> Failed to read PDF: ' + escapeHtml(String(err.message || err)) +
+          '<br><small style="opacity:0.8">Note: Scanned/image-only PDFs cannot be extracted as text.</small>',
           'error'
         );
       }
     });
+
+    /**
+     * Convert raw PDF.js page data into structured HTML.
+     * Strategy:
+     *  1. Group text items into lines (same y ± tolerance)
+     *  2. Detect font sizes to classify headings (h1/h2/h3/p)
+     *  3. Detect bullet/numbered list prefixes
+     *  4. Detect table-like structures (multiple columns on same line)
+     *  5. Merge consecutive paragraph lines into <p> blocks
+     */
+    function convertPdfPagesToHtml(allPageData, totalPages) {
+      /* Step 1: Flatten all items and build lines per page */
+      const allLines = [];
+
+      for (const { pageNum, items, viewport } of allPageData) {
+        if (items.length === 0) continue;
+
+        /* Group items by approximate y position (within 3pt tolerance) */
+        const lineMap = new Map();
+        for (const item of items) {
+          /* PDF y-coordinates are bottom-up; convert to top-down */
+          const y = Math.round((viewport.height - item.transform[5]) * 10) / 10;
+          const x = Math.round(item.transform[4] * 10) / 10;
+          const fontSize = Math.abs(item.transform[0]) || Math.abs(item.transform[3]) || 12;
+
+          /* Find a nearby y bucket (within 4pt) */
+          let bucket = null;
+          for (const [by] of lineMap) {
+            if (Math.abs(by - y) <= 4) { bucket = by; break; }
+          }
+          if (bucket === null) { bucket = y; lineMap.set(bucket, []); }
+          lineMap.get(bucket).push({ x, y: bucket, text: item.str, fontSize, bold: item.fontName && /bold/i.test(item.fontName), pageNum });
+        }
+
+        /* Sort lines top-to-bottom, items left-to-right */
+        const sortedYs = Array.from(lineMap.keys()).sort((a, b) => a - b);
+        for (const y of sortedYs) {
+          const lineItems = lineMap.get(y).sort((a, b) => a.x - b.x);
+          allLines.push(lineItems);
+        }
+      }
+
+      if (allLines.length === 0) return '<p>No text content could be extracted from this PDF.</p>';
+
+      /* Step 2: Compute font-size statistics to classify headings */
+      const fontSizes = allLines.flatMap(line => line.map(i => i.fontSize)).filter(s => s > 0);
+      fontSizes.sort((a, b) => a - b);
+      const medianFontSize = fontSizes[Math.floor(fontSizes.length / 2)] || 12;
+      const maxFontSize = Math.max(...fontSizes);
+
+      function classifyLine(line) {
+        const avgFontSize = line.reduce((s, i) => s + i.fontSize, 0) / line.length;
+        const isBold = line.some(i => i.bold);
+        const text = line.map(i => i.text).join(' ').trim();
+
+        if (!text) return null;
+
+        const ratio = avgFontSize / medianFontSize;
+
+        /* Heading detection: significantly larger font or bold + short + sentence case */
+        if (ratio >= 1.8 || (avgFontSize >= maxFontSize * 0.85)) return { tag: 'h1', text };
+        if (ratio >= 1.4) return { tag: 'h2', text };
+        if (ratio >= 1.15 || (isBold && text.length < 120 && !text.endsWith('.'))) return { tag: 'h3', text };
+
+        /* List item detection */
+        const bulletMatch = text.match(/^[\u2022\u2023\u25E6\u2043\u2219\-\*\•]\s+(.+)/);
+        if (bulletMatch) return { tag: 'li', text: bulletMatch[1], listType: 'ul' };
+
+        const numberedMatch = text.match(/^(\d+[\.\)]\s+)(.+)/);
+        if (numberedMatch) return { tag: 'li', text: numberedMatch[2], listType: 'ol' };
+
+        /* Table row detection: items spread widely across x-axis (3+ distinct x-clusters) */
+        if (line.length >= 3) {
+          const xPositions = line.map(i => i.x);
+          const xSpread = Math.max(...xPositions) - Math.min(...xPositions);
+          if (xSpread > 200) {
+            /* Check if items are in distinct columns (gaps > 40pt) */
+            const sortedX = [...xPositions].sort((a, b) => a - b);
+            let gaps = 0;
+            for (let i = 1; i < sortedX.length; i++) {
+              if (sortedX[i] - sortedX[i - 1] > 40) gaps++;
+            }
+            if (gaps >= 2) return { tag: 'tr', cells: line.sort((a, b) => a.x - b.x).map(i => i.text) };
+          }
+        }
+
+        return { tag: 'p', text };
+      }
+
+      /* Step 3: Build classified line objects */
+      const classified = [];
+      for (const line of allLines) {
+        const result = classifyLine(line);
+        if (result) classified.push(result);
+      }
+
+      /* Step 4: Merge consecutive paragraphs and build HTML */
+      let html = '';
+      let i = 0;
+      while (i < classified.length) {
+        const item = classified[i];
+
+        if (item.tag === 'h1' || item.tag === 'h2' || item.tag === 'h3') {
+          html += `<${item.tag}>${escapeHtml(item.text)}</${item.tag}>\n`;
+          i++;
+
+        } else if (item.tag === 'li') {
+          /* Collect consecutive list items of same type */
+          const listType = item.listType;
+          const items = [];
+          while (i < classified.length && classified[i].tag === 'li' && classified[i].listType === listType) {
+            items.push(classified[i].text);
+            i++;
+          }
+          html += `<${listType}>\n`;
+          items.forEach(t => { html += `  <li>${escapeHtml(t)}</li>\n`; });
+          html += `</${listType}>\n`;
+
+        } else if (item.tag === 'tr') {
+          /* Collect consecutive table rows */
+          const rows = [];
+          while (i < classified.length && classified[i].tag === 'tr') {
+            rows.push(classified[i].cells);
+            i++;
+          }
+          html += '<table>\n';
+          rows.forEach((cells, rowIdx) => {
+            html += '  <tr>';
+            cells.forEach(cell => {
+              const tag = rowIdx === 0 ? 'th' : 'td';
+              html += `<${tag}>${escapeHtml(cell)}</${tag}>`;
+            });
+            html += '</tr>\n';
+          });
+          html += '</table>\n';
+
+        } else {
+          /* Paragraph: merge with next if it looks like a continuation */
+          let combined = item.text;
+          while (
+            i + 1 < classified.length &&
+            classified[i + 1].tag === 'p' &&
+            /* Merge if current line doesn't end with sentence-terminating punctuation */
+            !combined.match(/[.!?:]\s*$/) &&
+            /* And next line starts lowercase or mid-sentence */
+            classified[i + 1].text.charAt(0) === classified[i + 1].text.charAt(0).toLowerCase()
+          ) {
+            i++;
+            combined += ' ' + classified[i].text;
+          }
+          html += `<p>${escapeHtml(combined)}</p>\n`;
+          i++;
+        }
+      }
+
+      return html.trim();
+    }
+
+    /* ===================================================== */
 
     /* Import insert button */
     $('#importInsert').addEventListener('click', () => {
       const html = $('#importHtml').value.trim();
       if (!html) { showToast('No content to import'); return; }
       hideModal('modalImport');
-      const hasContent = editor.innerText.trim().length > 0;
       const doImport = () => {
         editor.innerHTML = html;
         updateStats();
         updateOutline();
         showToast('Document imported successfully');
       };
-      if (hasContent) {
+      if (editor.innerText.trim().length > 0) {
         showConfirmDialog('Replace Content', 'This will replace your current content. Continue?', doImport);
       } else {
         doImport();
@@ -2352,7 +2372,6 @@
       const version = $('#metaVersion').value.trim();
       const status = $('#metaStatus').value;
       const notes = $('#metaNotes').value.trim();
-
       const content = isSourceMode ? sourceView.value : editor.innerHTML;
 
       const metaComments = [
@@ -2366,7 +2385,6 @@
         notes ? `Notes: ${notes}` : ''
       ].filter(Boolean).join('\n  ');
 
-      /* Build custom font @font-face rules for export */
       const customFontFaces = customFonts.map(f =>
         `@font-face { font-family: '${f.name}'; src: url('${f.base64DataUri}') format('${f.format}'); font-weight: normal; font-style: normal; font-display: swap; }`
       ).join('\n    ');
@@ -2384,15 +2402,7 @@
   -->
   <style>
     ${customFontFaces}
-    body {
-      font-family: 'Source Serif 4', Georgia, serif;
-      line-height: 1.8;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      color: #1e1e2c;
-      background: #fdfcfa;
-    }
+    body { font-family: 'Source Serif 4', Georgia, serif; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 40px 24px; color: #1e1e2c; background: #fdfcfa; }
     h1, h2, h3, h4 { font-family: 'DM Sans', system-ui, sans-serif; color: #1a1a2e; }
     h1 { font-size: 2rem; font-weight: 700; margin: 0 0 0.5em; line-height: 1.25; letter-spacing: -0.3px; }
     h2 { font-size: 1.5rem; font-weight: 600; margin: 1.8em 0 0.5em; padding-bottom: 0.3em; border-bottom: 2px solid #e8e3dc; }
@@ -2418,16 +2428,8 @@
     .kba-callout-success { border-color: #2a7d4a; background: rgba(42,125,74,0.08); }
     .kba-callout-danger { border-color: #b94432; background: rgba(185,68,50,0.08); }
     .kba-meta { font-family: 'DM Sans', sans-serif; font-size: 0.85em; color: #6a6a7c; }
-    @media print {
-      body { max-width: none; padding: 20px; }
-      .kba-callout { break-inside: avoid; }
-      pre { white-space: pre-wrap; word-wrap: break-word; }
-    }
-    @media (max-width: 600px) {
-      body { padding: 20px 16px; }
-      h1 { font-size: 1.6rem; }
-      h2 { font-size: 1.3rem; }
-    }
+    @media print { body { max-width: none; padding: 20px; } .kba-callout { break-inside: avoid; } pre { white-space: pre-wrap; word-wrap: break-word; } }
+    @media (max-width: 600px) { body { padding: 20px 16px; } h1 { font-size: 1.6rem; } h2 { font-size: 1.3rem; } }
   </style>
 </head>
 <body>
@@ -2437,7 +2439,6 @@
 </body>
 </html>`;
 
-      /* Download the file */
       const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2455,74 +2456,30 @@
 
     document.addEventListener('keydown', (e) => {
       const ctrl = e.ctrlKey || e.metaKey;
-
-      /* Ctrl+S - Export */
-      if (ctrl && e.key === 's') {
-        e.preventDefault();
-        exportHtml();
-        return;
-      }
-      /* Ctrl+K - Link */
-      if (ctrl && e.key === 'k') {
-        e.preventDefault();
-        $('#btnLink').click();
-        return;
-      }
-      /* Ctrl+H - Find & Replace */
-      if (ctrl && e.key === 'h') {
-        e.preventDefault();
-        toggleFindBar();
-        return;
-      }
-      /* Ctrl+Shift+C - Copy HTML */
-      if (ctrl && e.shiftKey && e.key === 'C') {
-        e.preventDefault();
-        copyHtmlToClipboard();
-        return;
-      }
-      /* Ctrl+0 - Paragraph */
-      if (ctrl && e.key === '0') {
-        e.preventDefault();
-        exec('formatBlock', '<p>');
-        formatSelect.value = 'p';
-        return;
-      }
-      /* Ctrl+1-4 - Headings */
+      if (ctrl && e.key === 's') { e.preventDefault(); exportHtml(); return; }
+      if (ctrl && e.key === 'k') { e.preventDefault(); $('#btnLink').click(); return; }
+      if (ctrl && e.key === 'h') { e.preventDefault(); toggleFindBar(); return; }
+      if (ctrl && e.shiftKey && e.key === 'C') { e.preventDefault(); copyHtmlToClipboard(); return; }
+      if (ctrl && e.key === '0') { e.preventDefault(); exec('formatBlock', '<p>'); formatSelect.value = 'p'; return; }
       if (ctrl && ['1','2','3','4'].includes(e.key)) {
-        e.preventDefault();
-        exec('formatBlock', `<h${e.key}>`);
-        formatSelect.value = `h${e.key}`;
-        return;
+        e.preventDefault(); exec('formatBlock', `<h${e.key}>`); formatSelect.value = `h${e.key}`; return;
       }
     });
 
-    /* Handle Tab and Shift+Enter in code blocks */
     editor.addEventListener('keydown', (e) => {
       const block = getCurrentBlock();
-
       if (e.key === 'Tab' && block && block.tagName === 'PRE') {
-        e.preventDefault();
-        document.execCommand('insertText', false, '  ');
-        return;
+        e.preventDefault(); document.execCommand('insertText', false, '  '); return;
       }
-
       if (e.key === 'Enter' && block && block.tagName === 'PRE') {
         if (e.shiftKey) {
           e.preventDefault();
-          const p = document.createElement('p');
-          p.innerHTML = '<br>';
+          const p = document.createElement('p'); p.innerHTML = '<br>';
           block.parentNode.insertBefore(p, block.nextSibling);
-          const range = document.createRange();
-          range.setStart(p, 0);
-          range.collapse(true);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-          return;
+          const range = document.createRange(); range.setStart(p, 0); range.collapse(true);
+          const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); return;
         }
-        e.preventDefault();
-        document.execCommand('insertText', false, '\n');
-        return;
+        e.preventDefault(); document.execCommand('insertText', false, '\n'); return;
       }
     });
 
@@ -2531,30 +2488,21 @@
       if (!sel.rangeCount) return null;
       let node = sel.anchorNode;
       while (node && node !== editor) {
-        if (node.nodeType === 1 && ['P','H1','H2','H3','H4','PRE','BLOCKQUOTE','LI','DIV','TABLE'].includes(node.tagName)) {
-          return node;
-        }
+        if (node.nodeType === 1 && ['P','H1','H2','H3','H4','PRE','BLOCKQUOTE','LI','DIV','TABLE'].includes(node.tagName)) return node;
         node = node.parentNode;
       }
       return null;
     }
 
-    /* ===== Copy HTML to Clipboard ===== */
     function copyHtmlToClipboard() {
       const content = isSourceMode ? sourceView.value : editor.innerHTML;
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(content).then(() => {
-          showToast('HTML copied to clipboard');
-        });
+        navigator.clipboard.writeText(content).then(() => showToast('HTML copied to clipboard'));
       }
     }
 
     /* ===== Editor Events ===== */
-    editor.addEventListener('input', () => {
-      updateStats();
-      updateOutline();
-    });
-
+    editor.addEventListener('input', () => { updateStats(); updateOutline(); });
     editor.addEventListener('mouseup', updateToolbarState);
     editor.addEventListener('keyup', updateToolbarState);
     editor.addEventListener('click', updateToolbarState);
@@ -2564,7 +2512,6 @@
     updateOutline();
     editor.focus();
 
-    /* Mark sidebar toggle active by default on desktop */
     if (window.innerWidth > 768) {
       $('#btnSidebar').classList.add('active');
     } else {
